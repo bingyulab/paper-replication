@@ -163,3 +163,5 @@ $$
 $$
 
 This algorithm terminates when the maximum number of iterations $i_{\max}$ has been exceeded, or when $\|r_{(i)}\| \leq \varepsilon\|r_{(0)}\|$.
+
+Again, more details about algorithms can be found in the document [conjugate_gradient](doc/conjugate_gradient.md).

@@ -16,7 +16,8 @@ from time import perf_counter
 import os
 import pandas as pd
 from scipy.sparse.linalg import cg as scipy_cg, LinearOperator
-from scipy.linalg import solve
+from scipy.linalg import solve, eigvals
+
 import json
 import warnings
 warnings.filterwarnings('ignore')
@@ -30,28 +31,73 @@ def timer(name):
     result = {'time': 0, 'iters': 0}
     yield result
     result['time'] = perf_counter() - start
-    print(f"{name}: {result['iters']} iters, {result['time']:.4f}s")
+    # print(f"{name}: {result['iters']} iters, {result['time']:.4f}s")
 
 # ---------- Helpers ----------
-def make_spd(n, kappa, seed=None):
+
+def report(A):
+    # assuming A is your matrix and M = np.diag(np.diag(A))
+    diagA = np.diag(A)
+    print("diag(A) stats: min, max, mean, std:", diagA.min(), diagA.max(), diagA.mean(), diagA.std())
+
+    # condition numbers
+    print("cond(A) (numpy):", np.linalg.cond(A))
+
+    # Jacobi preconditioned matrix (left preconditioning)
+    M_inv = np.diag(1.0 / diagA)
+    B = M_inv @ A
+    print("cond(M^{-1} A):", np.linalg.cond(B))
+
+    # eigenvalues (a quick look)
+    ev = np.sort(np.real(eigvals(A)))
+    print("eigenvalues (smallest 5):", ev[:5])
+    print("eigenvalues (largest 5):", ev[-5:])  
+    
+    # 1) symmetry check
+    sym_diff = np.max(np.abs(A - A.T))
+    print("max |A - A.T| =", sym_diff)
+
+    # 2) use symmetric eigen-solver on symmetrized A
+    A_sym = (A + A.T) * 0.5
+    ev_sym = np.linalg.eigvalsh(A_sym)      # robust for symmetric
+    print("eigsh smallest 5 (symmetrized):", ev_sym[:5])
+    print("eigsh largest 5 (symmetrized):", ev_sym[-5:])
+
+    # 3) try Cholesky (will raise if not SPD)
+    try:
+        np.linalg.cholesky(A_sym)
+        print("Cholesky OK on symmetrized A (numerically SPD).")
+    except np.linalg.LinAlgError as e:
+        print("Cholesky failed:", e)  
+    
+def make_spd(n, kappa, scale_factor=2, seed=None):
     """Generate SPD matrix using Hilbert-like structure with prescribed condition number"""
     rng = np.random.default_rng(seed)
     # Generate eigenvalues with prescribed condition number
-    eigs = np.linspace(1, kappa, n)
+    eigs = np.logspace(0, np.log10(kappa), n)
     # Random orthogonal matrix
     X = rng.standard_normal((n, n))
     Q, _ = np.linalg.qr(X)
     # Construct A = Q @ diag(eigs) @ Q.T: 
     # random orthogonal no difference, hence we add nonuniform diagonal dominance
-    D = np.diag(np.logspace(0, 6, n))
+    D = np.diag(np.linspace(1, scale_factor, n))
+    # D = np.diag(np.sqrt(rng.uniform(0.5, 2.0, n)))
     A = D @ (Q @ np.diag(eigs) @ Q.T) @ D
+    
+    # Get actual eigendecomposition
+    actual_eigs, V = np.linalg.eigh(A)
+    
+    # Replace eigenvalues with target ones, keep eigenvectors
+    target_eigs = np.logspace(0, np.log10(kappa), n)
+    A = V @ np.diag(target_eigs) @ V.T
+    report(A)
     return A
 
 def make_band(n, kappa, band_width=3, seed=None):
     """Generate banded SPD matrix with prescribed condition number"""
     rng = np.random.default_rng(seed)
     # Diagonal with prescribed condition number
-    diag_vals = np.linspace(kappa, 1, n)[::-1]
+    diag_vals = np.logspace(np.log10(kappa), 1, n)[::-1]
     A = np.diag(diag_vals)
     # Add off-diagonal bands
     for k in range(1, band_width + 1):
@@ -205,7 +251,7 @@ for n in problem_sizes:
                 A = make_spd(n, kappa, seed=123)
             else:
                 band_width = max(3, int(0.05 * n))
-                A = make_band(n, kappa, band_width=band_width, seed=123)
+                A = make_band(n, kappa, band_width=band_width, seed=123)            
             
             b = A @ x_true
             x0 = np.zeros(n)
