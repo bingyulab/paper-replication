@@ -1,6 +1,6 @@
 # Conjugate Gradient Methods
 
-There are 5 methods:
+There are 5 methods (Taken from "An Introduction to the Conjugate Gradient Method Without the Agonizing Pain""):
 
 ## B1. Steepest Descent
 
