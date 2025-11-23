@@ -16,8 +16,8 @@ __pycache__/
 *.log
 *.pdf
 *.synctex.gz
-
-
+*.tex
+*.out
 # Distribution / packaging
 .Python
 build/
