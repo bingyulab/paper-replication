@@ -13,11 +13,7 @@ Reference: CALCULATING THE SINGULAR VALUES AND PSEUDO-INVERSEOF A MATRIX
 
 For the implementation of the SVD method, please refer to the `svd` directory.
 
-More details about algorithms can be found in the document [svd_method](doc/svd_method.md).
-
 ## 3. FFT Method
 Reference: FFTW: An Adaptive Software Architecture for the FFT.
 
 For the implementation of the FFT method, please refer to the `fft` directory.
-
-More details about algorithms can be found in the document [fft_method](doc/fft_method.md).
